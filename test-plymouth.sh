@@ -4,7 +4,7 @@
 
 SPLASH_DURATION=10
 PASSWORD_DURATION=10
-THEME_NAME="monoarch-refined"
+THEME_NAME="monoverse"
 
 echo "Starting Plymouth combined test..."
 echo "Theme: $THEME_NAME"

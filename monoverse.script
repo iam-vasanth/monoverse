@@ -33,7 +33,7 @@ screen = {
 # ==================== LOGO SETUP ====================
 
 brand_logo = {
-    img: Image("images/arch.png")
+    img: Image("arch.png")
 };
 
 brand_logo.width = brand_logo.img.GetWidth();
@@ -259,11 +259,9 @@ animation = {
 fun on_refresh() {
     # Pulsating logo animation when not in boot mode
     if (Plymouth.GetMode() != "boot") {
-        animation.pulsate_angle = animation.pulsate_angle + ((2 * 3.14159) / 50) * animation.pulsate_speed;
-        
+        animation.pulsate_angle = animation.pulsate_angle + ((2 * 3.14159) / 50) * animation.pulsate_speed;    
         opacity_value = (Math.Cos(animation.pulsate_angle) + 1) / 2;
-        opacity_value = opacity_value * (1 - animation.pulsate_min) + animation.pulsate_min;
-        
+        opacity_value = opacity_value * (1 - animation.pulsate_min) + animation.pulsate_min;    
         brand_logo.sprite.SetOpacity(opacity_value);
     }
 }
