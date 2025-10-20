@@ -1,0 +1,218 @@
+# Copyright (c) 2025 iam-vasanth
+# Licensed under MIT License
+
+# ==================== SCREEN SETUP ====================
+
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+
+screen.w = Window.GetWidth();
+screen.h = Window.GetHeight();
+screen.half_w = Window.GetWidth() / 2;
+screen.half_h = Window.GetHeight() / 2;
+
+# ==================== LOGO SETUP ====================
+
+logo.image = Image("arch.png");
+logo.w = logo.image.GetWidth();
+logo.h = logo.image.GetHeight();
+
+# ==================== PROGRESS BAR ANIMATION SETUP ====================
+
+# Initialize progress frames array
+progress_frames = [];
+
+# Load all progress bar frames (0-131 = 132 frames total)
+for (i = 0; i <= 131; i++) {
+    progress_frames[i] = Image("progress-" + i + ".png");
+}
+
+progress.frame_count = 132;
+progress.current_frame = 0;
+progress.w = progress_frames[0].GetWidth();
+progress.h = progress_frames[0].GetHeight();
+
+# ==================== CALCULATE CENTERED POSITIONS ====================
+
+# Total height of logo + progress bar
+total_height = logo.h + progress.h + screen.h * 0.02;  # 2% gap between logo and progress
+
+# Center the entire group vertically
+group_y = screen.half_h - total_height / 2;
+
+# Position logo
+logo.x = screen.half_w - logo.w / 2;
+logo.y = group_y;
+
+# Position progress bar below logo
+progress.x = screen.half_w - progress.w / 2;
+progress.y = logo.y + logo.h + screen.h * 0.02;
+
+# ==================== CREATE SPRITES ====================
+
+logo.sprite = Sprite(logo.image);
+logo.sprite.SetPosition(logo.x, logo.y, 1);
+
+progress.sprite = Sprite();
+progress.sprite.SetPosition(progress.x, progress.y, 2);
+
+# ==================== STATE MANAGEMENT ====================
+
+boot_state.password_active = 0;
+boot_state.boot_progress = 0;
+boot_state.animation_progress = 0;
+
+# ==================== BOOT PROGRESS TRACKING ====================
+
+fun boot_progress_handler(time, progress_value) {
+    if (boot_state.password_active == 0) {
+        # Ensure progress is between 0 and 1
+        if (progress_value < 0) progress_value = 0;
+        if (progress_value > 1) progress_value = 1;
+        
+        boot_state.boot_progress = progress_value;
+        
+        # Calculate target frame based on boot progress
+        # We want to show all frames, so we interpolate smoothly
+        target_frame = Math.Int(progress_value * (progress.frame_count - 1));
+        
+        # Smoothly advance animation, never skip frames
+        if (boot_state.animation_progress < target_frame) {
+            boot_state.animation_progress++;
+        }
+        
+        # Display current frame
+        if (boot_state.animation_progress < progress.frame_count) {
+            progress.sprite.SetImage(progress_frames[boot_state.animation_progress]);
+            progress.sprite.SetOpacity(1);
+        }
+    }
+}
+
+Plymouth.SetBootProgressFunction(boot_progress_handler);
+
+# ==================== REFRESH ANIMATION ====================
+
+# Keep animating frames even if boot progress is slow
+animation_timer = 0;
+frames_per_second = 30;  # Smooth 30fps animation
+
+fun refresh_handler() {
+    if (boot_state.password_active == 0) {
+        animation_timer++;
+        
+        # Advance animation frames at consistent rate
+        # This ensures we don't skip frames visually
+        if (animation_timer % (50 / frames_per_second) == 0) {
+            # Only advance if boot allows us to
+            max_allowed_frame = Math.Int(boot_state.boot_progress * (progress.frame_count - 1));
+            
+            if (boot_state.animation_progress < max_allowed_frame) {
+                boot_state.animation_progress++;
+                
+                if (boot_state.animation_progress < progress.frame_count) {
+                    progress.sprite.SetImage(progress_frames[boot_state.animation_progress]);
+                }
+            }
+        }
+    }
+}
+
+Plymouth.SetRefreshFunction(refresh_handler);
+
+# ==================== PASSWORD PROMPT (Connect Style) ====================
+
+password.active = 0;
+password.prompt = NULL;
+password.bullets = NULL;
+password.bullet_image = Image.Text("*", 1, 1, 1);
+
+fun password_prompt_handler(prompt_text, bullet_count) {
+    boot_state.password_active = 1;
+    
+    # Hide progress bar during password entry
+    progress.sprite.SetOpacity(0);
+    
+    # Show password prompt at bottom of screen
+    total_width = bullet_count * password.bullet_image.GetWidth();
+    start_x = screen.half_w - total_width / 2;
+    
+    # Create "Enter Password" prompt
+    password.prompt_image = Image.Text("Enter Password", 1, 1, 1);
+    password.prompt = Sprite(password.prompt_image);
+    password.prompt.SetX(screen.half_w - password.prompt_image.GetWidth() / 2);
+    password.prompt.SetY(screen.h - 4 * password.prompt_image.GetHeight());
+    
+    # Clear and create bullets
+    password.bullets = NULL;
+    for (i = 0; i < bullet_count; i++) {
+        password.bullets[i] = Sprite(password.bullet_image);
+        password.bullets[i].SetX(start_x + i * password.bullet_image.GetWidth());
+        password.bullets[i].SetY(screen.h - 2 * password.bullet_image.GetHeight());
+    }
+}
+
+Plymouth.SetDisplayPasswordFunction(password_prompt_handler);
+
+# ==================== NORMAL DISPLAY (Password Accepted) ====================
+
+fun normal_display_handler() {
+    boot_state.password_active = 0;
+    
+    # Clear password prompt
+    if (password.prompt) {
+        password.prompt.SetOpacity(0);
+        password.prompt = NULL;
+    }
+    
+    if (password.bullets) {
+        for (i = 0; password.bullets[i]; i++) {
+            password.bullets[i].SetOpacity(0);
+        }
+        password.bullets = NULL;
+    }
+    
+    # Show progress bar and start boot animation
+    progress.sprite.SetOpacity(1);
+}
+
+Plymouth.SetDisplayNormalFunction(normal_display_handler);
+
+# ==================== MESSAGE DISPLAY ====================
+
+message_list = [];
+message_count = 0;
+message_y = 10;
+
+fun message_display_handler(text) {
+    msg_image = Image.Text(text, 1, 1, 1);
+    msg_sprite = Sprite(msg_image);
+    msg_sprite.SetPosition(10, message_y, 100);
+    
+    message_list[message_count] = msg_sprite;
+    message_list[message_count].text = text;
+    message_count++;
+    message_y = message_y + msg_image.GetHeight();
+}
+
+Plymouth.SetDisplayMessageFunction(message_display_handler);
+
+# ==================== MESSAGE HIDE ====================
+
+fun message_hide_handler(text) {
+    for (i = 0; i < message_count; i++) {
+        if (message_list[i].text == text) {
+            message_list[i].SetOpacity(0);
+        }
+    }
+}
+
+Plymouth.SetHideMessageFunction(message_hide_handler);
+
+# ==================== QUIT HANDLER ====================
+
+fun quit_handler() {
+    logo.sprite.SetOpacity(1);
+}
+
+Plymouth.SetQuitFunction(quit_handler);

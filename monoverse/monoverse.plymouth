@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Monoverse
+Description=Big Sur style boot theme with animated progress bar and universal display support
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/monoverse/images
+ScriptFile=/usr/share/plymouth/themes/monoverse/monoverse.script
